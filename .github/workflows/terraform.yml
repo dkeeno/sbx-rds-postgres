@@ -29,12 +29,14 @@ on:
     paths:
       - '**.tf'
       - '**.tfvars'
+      - 'seed/**'
       - '.github/workflows/terraform.yml'
   push:
     branches: [main]
     paths:
       - '**.tf'
       - '**.tfvars'
+      - 'seed/**'
       - '.github/workflows/terraform.yml'
   workflow_dispatch:
     inputs:
@@ -153,13 +155,15 @@ jobs:
     name: apply
     runs-on: ubuntu-latest
     needs: plan
-    # workflow_dispatch with action=apply ONLY. Push-to-main intentionally
-    # does NOT auto-apply — see header. The dispatch itself is the gate.
-    # Requires plan success in the same run so a bad plan blocks apply.
+    environment: production # gate — pauses with "Review deployments → Approve" button
+    # Runs on push-to-main (one connected pipeline) AND on workflow_dispatch.
+    # The env gate above is the human-in-the-loop click on every apply.
     if: |
-      github.event_name == 'workflow_dispatch'
-      && inputs.action == 'apply'
-      && needs.plan.result == 'success'
+      needs.plan.result == 'success'
+      && (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+      )
     steps:
       - uses: actions/checkout@v4
 
@@ -207,8 +211,7 @@ jobs:
     name: seed
     runs-on: ubuntu-latest
     needs: apply
-    # Always runs after a successful dispatched apply. No separate gate —
-    # the apply dispatch itself authorized the whole flow.
+    environment: production # second click gate — seed loads data, treat like apply
     if: needs.apply.result == 'success'
     steps:
       - uses: actions/checkout@v4
