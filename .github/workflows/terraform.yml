@@ -147,9 +147,15 @@ jobs:
     name: apply
     runs-on: ubuntu-latest
     needs: plan
+    # `always()` is REQUIRED so this job is evaluated even when `plan` is
+    # skipped (workflow_dispatch path). Without it, GH Actions cascades
+    # skips: plan skipped → apply auto-skipped, breaking workflow_dispatch.
+    # Discovered 2026-05-15.
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
-      || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+      always() && (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.plan.result == 'success')
+        || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+      )
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -210,7 +216,8 @@ jobs:
     name: seed
     runs-on: ubuntu-latest
     needs: apply
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Run after apply succeeds, regardless of which event triggered apply.
+    if: always() && needs.apply.result == 'success'
     environment: production  # same gate — apply approval implies seed approval
     steps:
       - uses: actions/checkout@v4
