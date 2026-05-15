@@ -18,7 +18,7 @@ bastion_security_group_name = "sbx-bastion-sg"
 additional_ingress_cidrs = []
 
 db_instance_class       = "db.t4g.micro"
-db_engine_version       = "16.4"
+db_engine_version       = "16.14" # current latest in us-east-1 as of 2026-05-15
 db_allocated_storage_gb = 20
 db_storage_type         = "gp3"
 db_name                 = "enterprise_corp"

@@ -64,9 +64,9 @@ variable "db_instance_class" {
 }
 
 variable "db_engine_version" {
-  description = "PostgreSQL major.minor version. 16.x is the current LTS line."
+  description = "PostgreSQL major.minor version. 16.x is the current LTS line. Discover currently-available versions via: aws rds describe-db-engine-versions --engine postgres --query \"DBEngineVersions[?starts_with(EngineVersion,'16')].EngineVersion\" --region us-east-1"
   type        = string
-  default     = "16.4"
+  default     = "16.14"
 }
 
 variable "db_allocated_storage_gb" {

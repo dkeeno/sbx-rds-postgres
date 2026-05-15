@@ -1,20 +1,26 @@
 # =============================================================================
-# terraform.yml — validate / plan / manual-apply for sbx-rds-postgres
+# terraform.yml — validate / plan / dispatch-gated apply for sbx-rds-postgres
 # =============================================================================
 #
-# Mirror of sbx-cluster-iac/terraform.yml, adjusted for this stack:
-#  - No GITOPS_REPO_PAT secret (no ArgoCD)
-#  - No TF_VAR_github_pat_for_argocd (same reason)
-#  - All other patterns identical: validate → plan → manual-approve apply
-#    on the `production` GitHub Environment (set up by bootstrap stack)
-#
 # Pipeline contract:
-#   PR open/sync       → fmt-check + validate + plan (PR comment with diff)
-#   push to main       → fmt-check + validate + plan (artifact retained)
-#   workflow_dispatch  → apply OR destroy (gated on production env approval)
+#   PR open/sync       → validate + plan (PR comment with diff)
+#   push to main       → validate + plan ONLY  (NO automatic apply)
+#   workflow_dispatch  → apply OR destroy + seed (manual click in Actions UI)
 #
-# Auth: GitHub OIDC → IAM role sbx-github-actions (trust policy already
-# wildcarded to repo:dkeeno/sbx-*:*, no per-repo trust update needed).
+# Why workflow_dispatch is the gate (not GitHub Environments):
+#   GitHub Environments with `reviewers` are designed for >=2 person teams.
+#   Solo-dev sandbox: when the deployer is the only required reviewer, GH
+#   auto-approves silently. Setting prevent_self_review=true creates a
+#   permanent deadlock (no one can approve). Discovered 2026-05-15 — see
+#   memory `github_env_prevent_self_review`.
+#
+#   Workflow_dispatch sidesteps the issue: triggering apply requires the
+#   user to actively click "Run workflow" in the Actions tab AND choose
+#   action=apply. That click IS the manual gate. HARD RULE
+#   feedback_manual_apply_no_auto_approval honored without env gymnastics.
+#
+# Auth: GitHub OIDC → IAM role sbx-github-actions (wildcarded to
+# repo:dkeeno/sbx-*:*).
 
 name: terraform
 
@@ -146,17 +152,9 @@ jobs:
   apply:
     name: apply
     runs-on: ubuntu-latest
-    needs: plan
-    # `always()` is REQUIRED so this job is evaluated even when `plan` is
-    # skipped (workflow_dispatch path). Without it, GH Actions cascades
-    # skips: plan skipped → apply auto-skipped, breaking workflow_dispatch.
-    # Discovered 2026-05-15.
-    if: |
-      always() && (
-        (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.plan.result == 'success')
-        || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
-      )
-    environment: production
+    # workflow_dispatch with action=apply ONLY. Push-to-main intentionally
+    # does NOT auto-apply — see header. The dispatch itself is the gate.
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
     steps:
       - uses: actions/checkout@v4
 
@@ -174,19 +172,7 @@ jobs:
       - name: Init
         run: terraform init
 
-      # Reuse the plan artifact created in the same workflow run on push.
-      - name: Download plan artifact
-        if: github.event_name == 'push'
-        uses: actions/download-artifact@v4
-        with:
-          name: tfplan-${{ github.run_id }}
-
-      - name: Apply (push to main → use plan artifact)
-        if: github.event_name == 'push'
-        run: terraform apply -auto-approve tfplan
-
-      - name: Apply (workflow_dispatch → fresh plan + apply)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Apply (fresh plan + apply on dispatch)
         run: terraform apply -auto-approve
 
       - name: Capture outputs
@@ -216,9 +202,9 @@ jobs:
     name: seed
     runs-on: ubuntu-latest
     needs: apply
-    # Run after apply succeeds, regardless of which event triggered apply.
-    if: always() && needs.apply.result == 'success'
-    environment: production  # same gate — apply approval implies seed approval
+    # Always runs after a successful dispatched apply. No separate gate —
+    # the apply dispatch itself authorized the whole flow.
+    if: needs.apply.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
