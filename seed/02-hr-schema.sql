@@ -84,9 +84,19 @@ COMMENT ON TABLE hr.employees IS 'All people who have ever been employed. Use th
 
 -- Now we can backfill the FK from departments.manager_id → employees.id
 -- (must come AFTER employees exists; data populated in 08-*).
-ALTER TABLE hr.departments
-  ADD CONSTRAINT departments_manager_fkey
-  FOREIGN KEY (manager_id) REFERENCES hr.employees(id) ON DELETE SET NULL;
+-- Wrapped in a DO block + pg_constraint check so the seed file is
+-- idempotent (re-running after a partial failure won't error out on
+-- "constraint already exists").
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'departments_manager_fkey'
+  ) THEN
+    ALTER TABLE hr.departments
+      ADD CONSTRAINT departments_manager_fkey
+      FOREIGN KEY (manager_id) REFERENCES hr.employees(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 -- ----------- payroll -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS hr.payroll (
