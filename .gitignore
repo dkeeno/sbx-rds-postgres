@@ -1,0 +1,15 @@
+# Terraform local artifacts — HARD RULE feedback_no_terraform_artifacts:
+# .terraform/ AND .terraform.lock.hcl are EXCLUDED from version control.
+.terraform/
+.terraform.lock.hcl
+
+# Plan files + tfvars overrides (never commit; may contain sensitive data)
+*.tfplan
+*.tfstate
+*.tfstate.backup
+*.auto.tfvars
+override.tf
+override.tf.json
+
+# OS noise
+.DS_Store
