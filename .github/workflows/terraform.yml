@@ -327,11 +327,16 @@ jobs:
   # ---------------------------------------------------------------------------
   # destroy — manual workflow_dispatch only
   # ---------------------------------------------------------------------------
+  # `needs: plan` keeps the Actions graph connected as one continuous
+  # pipeline (validate → plan → destroy). always() lets destroy run even
+  # though plan is always skipped on workflow_dispatch.
   destroy:
     name: destroy
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
-    environment: production
+    needs: plan
+    if: |
+      always() &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
     steps:
       - uses: actions/checkout@v4
 
