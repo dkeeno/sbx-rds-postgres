@@ -46,6 +46,13 @@ CREATE EXTENSION IF NOT EXISTS citext;
 -- pg_stat_statements: query-fingerprint-based metrics (useful for the demo).
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
+-- btree_gist: lets B-tree-comparable types (like bigint) participate in GIST
+-- indexes. Required by hr.payroll's EXCLUDE constraint, which uses
+-- `EXCLUDE USING gist (employee_id WITH =, pay_period WITH &&)` to enforce
+-- non-overlapping payroll periods per employee. Without this extension the
+-- bigint = operator has no GIST operator class and the table create fails.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
 \echo '== Creating reusable roles =='
 
 DO $$
