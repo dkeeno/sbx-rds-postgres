@@ -38,9 +38,9 @@ variable "vpc_name_tag" {
 }
 
 variable "private_subnet_name_pattern" {
-  description = "Name-tag wildcard for the private subnets RDS should use (one per AZ)."
+  description = "Name-tag wildcard for the private subnets RDS should use (one per AZ). Actual sbx-cluster-iac uses 'sbx-prv-*' — the matching default is sbx-prv-*."
   type        = string
-  default     = "sbx-private-*"
+  default     = "sbx-prv-*"
 }
 
 variable "bastion_security_group_name" {

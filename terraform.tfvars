@@ -9,7 +9,7 @@ name_prefix = "sbx"
 owner_tag   = "dkeeno"
 
 vpc_name_tag                = "sbx-vpc"
-private_subnet_name_pattern = "sbx-private-*"
+private_subnet_name_pattern = "sbx-prv-*" # actual cluster-iac convention (not sbx-private-*)
 bastion_security_group_name = "sbx-bastion-sg"
 
 # Add your laptop's public IP/32 here ONLY when you want to seed from local
